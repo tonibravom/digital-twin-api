@@ -3,16 +3,12 @@
 <html lang="es">
 
 <head>
-
   <meta charset="UTF-8">
-
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Importar históricos - Gemelo Digital</title>
 
   <style>
-
     * {
       box-sizing: border-box;
     }
@@ -190,7 +186,6 @@
     }
 
     @media (max-width: 700px) {
-
       .resumen-grid {
         grid-template-columns: 1fr;
       }
@@ -199,9 +194,7 @@
         margin-left: 0;
         margin-top: 10px;
       }
-
     }
-
   </style>
 
 </head>
@@ -218,9 +211,7 @@
 
   <div class="cabecera">
 
-    <h1>
-      Importar históricos
-    </h1>
+    <h1>Importar históricos</h1>
 
     <p>
       Gemelo Digital de edificios
@@ -262,7 +253,7 @@
       <input
         type="file"
         id="archivos"
-        accept=".csv"
+        accept=".csv,text/csv"
         multiple
       >
 
@@ -307,7 +298,6 @@
         </div>
 
       </div>
-
 
       <div
         id="progresoTexto"
@@ -474,69 +464,47 @@
   // ==================================================
 
   const edificio =
-    document.getElementById(
-      "edificio"
-    );
+    document.getElementById("edificio");
 
 
   const archivos =
-    document.getElementById(
-      "archivos"
-    );
+    document.getElementById("archivos");
 
 
   const btnImportar =
-    document.getElementById(
-      "btnImportar"
-    );
+    document.getElementById("btnImportar");
 
 
   const btnLimpiar =
-    document.getElementById(
-      "btnLimpiar"
-    );
+    document.getElementById("btnLimpiar");
 
 
   const estado =
-    document.getElementById(
-      "estado"
-    );
+    document.getElementById("estado");
 
 
   const progresoContenedor =
-    document.getElementById(
-      "progresoContenedor"
-    );
+    document.getElementById("progresoContenedor");
 
 
   const barra =
-    document.getElementById(
-      "barra"
-    );
+    document.getElementById("barra");
 
 
   const progresoTexto =
-    document.getElementById(
-      "progresoTexto"
-    );
+    document.getElementById("progresoTexto");
 
 
   const tarjetaResultados =
-    document.getElementById(
-      "tarjetaResultados"
-    );
+    document.getElementById("tarjetaResultados");
 
 
   const resultados =
-    document.getElementById(
-      "resultados"
-    );
+    document.getElementById("resultados");
 
 
   const resumen =
-    document.getElementById(
-      "resumen"
-    );
+    document.getElementById("resumen");
 
 
   // ==================================================
@@ -568,9 +536,7 @@
 
 
     const lista =
-      Array.from(
-        archivos.files
-      );
+      Array.from(archivos.files);
 
 
     if (!lista.length) {
@@ -591,19 +557,14 @@
     // BLOQUEAR INTERFAZ
     // ----------------------------------------------
 
-    btnImportar.disabled =
-      true;
+    btnImportar.disabled = true;
 
-    archivos.disabled =
-      true;
+    archivos.disabled = true;
 
-    edificio.disabled =
-      true;
+    edificio.disabled = true;
 
 
-    estado.style.display =
-      "block";
-
+    estado.style.display = "block";
 
     estado.textContent =
       "Iniciando importación...";
@@ -617,16 +578,11 @@
       "block";
 
 
-    resultados.innerHTML =
-      "";
+    resultados.innerHTML = "";
 
+    resumen.style.display = "none";
 
-    resumen.style.display =
-      "none";
-
-
-    barra.style.width =
-      "0%";
+    barra.style.width = "0%";
 
 
     // ----------------------------------------------
@@ -672,7 +628,7 @@
 
 
       barra.style.width =
-        `${((i) / lista.length) * 100}%`;
+        `${(i / lista.length) * 100}%`;
 
 
       try {
@@ -699,7 +655,7 @@
 
 
         // ------------------------------------------
-        // LLAMADA EDGE FUNCTION
+        // LLAMADA A SUPABASE EDGE FUNCTION
         // ------------------------------------------
 
         const response =
@@ -747,7 +703,7 @@
 
 
         // ------------------------------------------
-        // CORRECTO
+        // IMPORTACIÓN CORRECTA
         // ------------------------------------------
 
         correctos++;
@@ -772,10 +728,6 @@
 
       } catch (error) {
 
-
-        // ------------------------------------------
-        // ERROR
-        // ------------------------------------------
 
         errores++;
 
@@ -828,14 +780,11 @@
     // DESBLOQUEAR
     // ----------------------------------------------
 
-    btnImportar.disabled =
-      false;
+    btnImportar.disabled = false;
 
-    archivos.disabled =
-      false;
+    archivos.disabled = false;
 
-    edificio.disabled =
-      false;
+    edificio.disabled = false;
 
   }
 
@@ -850,9 +799,7 @@
 
 
     const elemento =
-      document.createElement(
-        "div"
-      );
+      document.createElement("div");
 
 
     elemento.className =
@@ -884,9 +831,7 @@
     `;
 
 
-    resultados.appendChild(
-      elemento
-    );
+    resultados.appendChild(elemento);
 
   }
 
@@ -902,9 +847,7 @@
 
 
     const elemento =
-      document.createElement(
-        "div"
-      );
+      document.createElement("div");
 
 
     elemento.className =
@@ -924,9 +867,7 @@
     `;
 
 
-    resultados.appendChild(
-      elemento
-    );
+    resultados.appendChild(elemento);
 
   }
 
@@ -947,44 +888,35 @@
 
     document.getElementById(
       "totalArchivos"
-    ).textContent =
-      archivos;
+    ).textContent = archivos;
 
 
     document.getElementById(
       "totalCorrectos"
-    ).textContent =
-      correctos;
+    ).textContent = correctos;
 
 
     document.getElementById(
       "totalErrores"
-    ).textContent =
-      errores;
+    ).textContent = errores;
 
 
     document.getElementById(
       "totalLecturas"
     ).textContent =
-      lecturasProcesadas.toLocaleString(
-        "es-ES"
-      );
+      lecturasProcesadas.toLocaleString("es-ES");
 
 
     document.getElementById(
       "totalNuevas"
     ).textContent =
-      lecturasNuevas.toLocaleString(
-        "es-ES"
-      );
+      lecturasNuevas.toLocaleString("es-ES");
 
 
     document.getElementById(
       "totalDuplicadas"
     ).textContent =
-      lecturasDuplicadas.toLocaleString(
-        "es-ES"
-      );
+      lecturasDuplicadas.toLocaleString("es-ES");
 
 
     resumen.style.display =
@@ -1002,36 +934,26 @@
     () => {
 
 
-      archivos.value =
-        "";
+      archivos.value = "";
 
-
-      resultados.innerHTML =
-        "";
-
+      resultados.innerHTML = "";
 
       tarjetaResultados.style.display =
         "none";
 
-
       progresoContenedor.style.display =
         "none";
-
 
       estado.style.display =
         "none";
 
+      barra.style.width = "0%";
 
-      barra.style.width =
-        "0%";
+      progresoTexto.textContent = "";
 
+      resumen.style.display = "none";
 
-      progresoTexto.textContent =
-        "";
-
-
-      btnImportar.disabled =
-        true;
+      btnImportar.disabled = true;
 
     }
   );
@@ -1043,3 +965,5 @@
 </body>
 
 </html>
+
+
