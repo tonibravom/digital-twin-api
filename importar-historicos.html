@@ -1,13 +1,18 @@
-<!DOCTYPE html>
 
+<!DOCTYPE html>
 <html lang="es">
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
 
   <title>Importar históricos - Gemelo Digital</title>
 
   <style>
+
     * {
       box-sizing: border-box;
     }
@@ -185,6 +190,7 @@
     }
 
     @media (max-width: 700px) {
+
       .resumen-grid {
         grid-template-columns: 1fr;
       }
@@ -193,114 +199,128 @@
         margin-left: 0;
         margin-top: 10px;
       }
+
     }
+
   </style>
 
 </head>
+
 
 <body>
 
 <div class="contenedor">
 
-  <div class="cabecera">
-    <h1>Importar históricos</h1>
-    <p>Gemelo Digital de edificios</p>
-  </div>
 
   <!-- ============================================= -->
+  <!-- CABECERA -->
+  <!-- ============================================= -->
 
-  <!-- CONFIGURACIÓN x-->
+  <div class="cabecera">
 
+    <h1>
+      Importar históricos
+    </h1>
+
+    <p>
+      Gemelo Digital de edificios
+    </p>
+
+  </div>
+
+
+  <!-- ============================================= -->
+  <!-- CONFIGURACIÓN -->
   <!-- ============================================= -->
 
   <div class="tarjeta">
 
-```
-<div class="campo">
 
-  <label for="edificio">
-    Edificio
-  </label>
+    <div class="campo">
 
-  <select id="edificio">
+      <label for="edificio">
+        Edificio
+      </label>
 
-    <option value="1">
-      Edificio 1
-    </option>
+      <select id="edificio">
 
-  </select>
+        <option value="1">
+          Edificio 1
+        </option>
 
-</div>
+      </select>
 
-
-<div class="campo">
-
-  <label for="archivos">
-    Archivos históricos XLSX
-  </label>
-
-  <input
-    type="file"
-    id="archivos"
-    accept=".xlsx,.xls"
-    multiple
-  >
-
-</div>
+    </div>
 
 
-<div>
+    <div class="campo">
 
-  <button
-    id="btnImportar"
-    disabled
-  >
-    IMPORTAR HISTÓRICOS
-  </button>
+      <label for="archivos">
+        Archivos históricos CSV
+      </label>
 
-  <button
-    id="btnLimpiar"
-    type="button"
-  >
-    LIMPIAR
-  </button>
+      <input
+        type="file"
+        id="archivos"
+        accept=".csv"
+        multiple
+      >
 
-</div>
+    </div>
 
 
-<div
-  id="estado"
-  class="estado">
-</div>
+    <div>
+
+      <button
+        id="btnImportar"
+        disabled
+      >
+        IMPORTAR HISTÓRICOS
+      </button>
 
 
-<div
-  id="progresoContenedor"
-  class="progreso-contenedor">
+      <button
+        id="btnLimpiar"
+        type="button"
+      >
+        LIMPIAR
+      </button>
 
-  <div class="barra-fondo">
+    </div>
+
 
     <div
-      id="barra"
-      class="barra">
+      id="estado"
+      class="estado">
+    </div>
+
+
+    <div
+      id="progresoContenedor"
+      class="progreso-contenedor">
+
+      <div class="barra-fondo">
+
+        <div
+          id="barra"
+          class="barra">
+        </div>
+
+      </div>
+
+
+      <div
+        id="progresoTexto"
+        class="progreso-texto">
+      </div>
+
     </div>
 
   </div>
 
-  <div
-    id="progresoTexto"
-    class="progreso-texto">
-  </div>
-
-</div>
-```
-
-  </div>
 
   <!-- ============================================= -->
-
   <!-- RESULTADOS -->
-
   <!-- ============================================= -->
 
   <div
@@ -308,114 +328,122 @@
     class="tarjeta"
     style="display:none;">
 
-```
-<h2>Resultados</h2>
-
-<div
-  id="resultados"
-  class="resultados">
-</div>
+    <h2>
+      Resultados
+    </h2>
 
 
-<!-- =========================================== -->
-<!-- RESUMEN -->
-<!-- =========================================== -->
-
-<div
-  id="resumen"
-  class="resumen">
-
-  <h3>
-    Resumen de la importación
-  </h3>
-
-  <div class="resumen-grid">
-
-    <div class="dato">
-
-      <div
-        id="totalArchivos"
-        class="dato-numero">
-        0
-      </div>
-
-      <div class="dato-label">
-        Archivos
-      </div>
-
+    <div
+      id="resultados"
+      class="resultados">
     </div>
 
 
-    <div class="dato">
+    <!-- =========================================== -->
+    <!-- RESUMEN -->
+    <!-- =========================================== -->
 
-      <div
-        id="totalCorrectos"
-        class="dato-numero">
-        0
-      </div>
+    <div
+      id="resumen"
+      class="resumen">
 
-      <div class="dato-label">
-        Correctos
-      </div>
-
-    </div>
+      <h3>
+        Resumen de la importación
+      </h3>
 
 
-    <div class="dato">
-
-      <div
-        id="totalErrores"
-        class="dato-numero">
-        0
-      </div>
-
-      <div class="dato-label">
-        Errores
-      </div>
-
-    </div>
+      <div class="resumen-grid">
 
 
-    <div class="dato">
+        <div class="dato">
 
-      <div
-        id="totalLecturas"
-        class="dato-numero">
-        0
-      </div>
+          <div
+            id="totalArchivos"
+            class="dato-numero">
+            0
+          </div>
 
-      <div class="dato-label">
-        Lecturas procesadas
-      </div>
+          <div class="dato-label">
+            Archivos
+          </div>
 
-    </div>
-
-
-    <div class="dato">
-
-      <div
-        id="totalNuevas"
-        class="dato-numero">
-        0
-      </div>
-
-      <div class="dato-label">
-        Lecturas nuevas
-      </div>
-
-    </div>
+        </div>
 
 
-    <div class="dato">
+        <div class="dato">
 
-      <div
-        id="totalDuplicadas"
-        class="dato-numero">
-        0
-      </div>
+          <div
+            id="totalCorrectos"
+            class="dato-numero">
+            0
+          </div>
 
-      <div class="dato-label">
-        Lecturas duplicadas
+          <div class="dato-label">
+            Correctos
+          </div>
+
+        </div>
+
+
+        <div class="dato">
+
+          <div
+            id="totalErrores"
+            class="dato-numero">
+            0
+          </div>
+
+          <div class="dato-label">
+            Errores
+          </div>
+
+        </div>
+
+
+        <div class="dato">
+
+          <div
+            id="totalLecturas"
+            class="dato-numero">
+            0
+          </div>
+
+          <div class="dato-label">
+            Lecturas procesadas
+          </div>
+
+        </div>
+
+
+        <div class="dato">
+
+          <div
+            id="totalNuevas"
+            class="dato-numero">
+            0
+          </div>
+
+          <div class="dato-label">
+            Lecturas nuevas
+          </div>
+
+        </div>
+
+
+        <div class="dato">
+
+          <div
+            id="totalDuplicadas"
+            class="dato-numero">
+            0
+          </div>
+
+          <div class="dato-label">
+            Lecturas duplicadas
+          </div>
+
+        </div>
+
       </div>
 
     </div>
@@ -423,13 +451,10 @@
   </div>
 
 </div>
-```
 
-  </div>
-
-</div>
 
 <script>
+
 
   // ==================================================
   // CONFIGURACIÓN SUPABASE
@@ -453,50 +478,60 @@
       "edificio"
     );
 
+
   const archivos =
     document.getElementById(
       "archivos"
     );
+
 
   const btnImportar =
     document.getElementById(
       "btnImportar"
     );
 
+
   const btnLimpiar =
     document.getElementById(
       "btnLimpiar"
     );
+
 
   const estado =
     document.getElementById(
       "estado"
     );
 
+
   const progresoContenedor =
     document.getElementById(
       "progresoContenedor"
     );
+
 
   const barra =
     document.getElementById(
       "barra"
     );
 
+
   const progresoTexto =
     document.getElementById(
       "progresoTexto"
     );
+
 
   const tarjetaResultados =
     document.getElementById(
       "tarjetaResultados"
     );
 
+
   const resultados =
     document.getElementById(
       "resultados"
     );
+
 
   const resumen =
     document.getElementById(
@@ -531,6 +566,7 @@
 
   async function importarArchivos() {
 
+
     const lista =
       Array.from(
         archivos.files
@@ -540,7 +576,7 @@
     if (!lista.length) {
 
       alert(
-        "Selecciona al menos un archivo XLSX."
+        "Selecciona al menos un archivo CSV."
       );
 
       return;
@@ -555,15 +591,19 @@
     // BLOQUEAR INTERFAZ
     // ----------------------------------------------
 
-    btnImportar.disabled = true;
+    btnImportar.disabled =
+      true;
 
-    archivos.disabled = true;
+    archivos.disabled =
+      true;
 
-    edificio.disabled = true;
+    edificio.disabled =
+      true;
 
 
     estado.style.display =
       "block";
+
 
     estado.textContent =
       "Iniciando importación...";
@@ -594,10 +634,13 @@
     // ----------------------------------------------
 
     let correctos = 0;
+
     let errores = 0;
 
     let lecturasProcesadas = 0;
+
     let lecturasNuevas = 0;
+
     let lecturasDuplicadas = 0;
 
 
@@ -610,6 +653,7 @@
       i < lista.length;
       i++
     ) {
+
 
       const archivo =
         lista[i];
@@ -632,6 +676,7 @@
 
 
       try {
+
 
         // ------------------------------------------
         // FORM DATA
@@ -662,7 +707,6 @@
             EDGE_FUNCTION_URL,
             {
               method: "POST",
-
               body: formData
             }
           );
@@ -685,6 +729,7 @@
           throw new Error(
             `Respuesta no válida. HTTP ${response.status}`
           );
+
         }
 
 
@@ -697,6 +742,7 @@
             resultado.error ||
             `Error HTTP ${response.status}`
           );
+
         }
 
 
@@ -726,6 +772,7 @@
 
       } catch (error) {
 
+
         // ------------------------------------------
         // ERROR
         // ------------------------------------------
@@ -737,6 +784,7 @@
           archivo.name,
           error.message
         );
+
       }
 
 
@@ -754,6 +802,7 @@
 
       progresoTexto.textContent =
         `${numero} / ${lista.length}`;
+
     }
 
 
@@ -787,6 +836,7 @@
 
     edificio.disabled =
       false;
+
   }
 
 
@@ -797,6 +847,7 @@
   function mostrarResultadoCorrecto(
     resultado
   ) {
+
 
     const elemento =
       document.createElement(
@@ -836,6 +887,7 @@
     resultados.appendChild(
       elemento
     );
+
   }
 
 
@@ -847,6 +899,7 @@
     nombreArchivo,
     mensaje
   ) {
+
 
     const elemento =
       document.createElement(
@@ -874,6 +927,7 @@
     resultados.appendChild(
       elemento
     );
+
   }
 
 
@@ -889,6 +943,7 @@
     lecturasNuevas,
     lecturasDuplicadas
   ) {
+
 
     document.getElementById(
       "totalArchivos"
@@ -934,6 +989,7 @@
 
     resumen.style.display =
       "block";
+
   }
 
 
@@ -945,33 +1001,45 @@
     "click",
     () => {
 
+
       archivos.value =
         "";
+
 
       resultados.innerHTML =
         "";
 
+
       tarjetaResultados.style.display =
         "none";
+
 
       progresoContenedor.style.display =
         "none";
 
+
       estado.style.display =
         "none";
+
 
       barra.style.width =
         "0%";
 
+
       progresoTexto.textContent =
         "";
 
+
       btnImportar.disabled =
         true;
+
     }
   );
 
+
 </script>
 
+
 </body>
+
 </html>
