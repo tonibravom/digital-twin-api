@@ -1,9 +1,13 @@
 import os
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
 from typing import Optional
+
+ZONA_HORARIA = ZoneInfo("Europe/Madrid")
 
 app = FastAPI(title="Digital Twin API")
 
@@ -100,6 +104,54 @@ def obtener_lecturas(
         respuesta = query.execute()
         return {"count": len(respuesta.data), "data": respuesta.data}
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _inicio_dia_utc_iso() -> str:
+    """Medianoche de hoy en hora de Madrid, convertida a UTC ISO8601."""
+    ahora_local = datetime.now(ZONA_HORARIA)
+    inicio_local = ahora_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    return inicio_local.astimezone(timezone.utc).isoformat()
+
+
+@app.get("/api/sensores/{codigo}/valores")
+def obtener_valores_sensor(codigo: str):
+    """
+    Sustituto directo de los antiguos ficheros datos_sensores/<codigo>.json.
+    Devuelve {"values": [...]} con las lecturas de HOY (hora de Madrid) para
+    el sensor identificado por su código de texto (columna 'sensor_id' en
+    la tabla 'sensores').
+    """
+    try:
+        sensor_resp = (
+            supabase.table("sensores")
+            .select("id")
+            .eq("sensor_id", codigo)
+            .limit(1)
+            .execute()
+        )
+
+        if not sensor_resp.data:
+            raise HTTPException(status_code=404, detail=f"Sensor '{codigo}' no encontrado")
+
+        sensor_numeric_id = sensor_resp.data[0]["id"]
+        desde = _inicio_dia_utc_iso()
+
+        lecturas_resp = (
+            supabase.table("lecturas")
+            .select("valor, timestamp")
+            .eq("sensor_id", sensor_numeric_id)
+            .gte("timestamp", desde)
+            .order("timestamp", desc=False)
+            .execute()
+        )
+
+        valores = [fila["valor"] for fila in lecturas_resp.data]
+        return {"values": valores}
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
