@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta, timezone
+from datetime import time as dtime
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Query
@@ -163,6 +164,10 @@ def comparativa_energia(codigo: str):
     sensor de energía contra:
       - el acumulado de AYER hasta la misma hora
       - la media de los últimos 5 días laborables hasta la misma hora
+
+    Nota: se consulta cada día por separado (en vez de traer 15 días de golpe)
+    para evitar el límite por defecto de 1000 filas de Supabase, que cortaba
+    las lecturas más recientes (las de hoy).
     """
     try:
         sensor_resp = (
@@ -178,46 +183,45 @@ def comparativa_energia(codigo: str):
         sensor_numeric_id = sensor_resp.data[0]["id"]
 
         ahora_local = datetime.now(ZONA_HORARIA)
+        hoy = ahora_local.date()
         hora_actual = ahora_local.time()
 
-        # margen de 15 días naturales para asegurar 5 días laborables completos
-        desde_local = (ahora_local - timedelta(days=15)).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        desde_utc = desde_local.astimezone(timezone.utc).isoformat()
+        def suma_dia(dia_local) -> Optional[float]:
+            inicio_local = datetime.combine(dia_local, dtime.min, tzinfo=ZONA_HORARIA)
+            fin_local = datetime.combine(dia_local, hora_actual, tzinfo=ZONA_HORARIA)
 
-        lecturas_resp = (
-            supabase.table("lecturas")
-            .select("valor, timestamp")
-            .eq("sensor_id", sensor_numeric_id)
-            .gte("timestamp", desde_utc)
-            .order("timestamp", desc=False)
-            .execute()
-        )
+            resp = (
+                supabase.table("lecturas")
+                .select("valor")
+                .eq("sensor_id", sensor_numeric_id)
+                .gte("timestamp", inicio_local.astimezone(timezone.utc).isoformat())
+                .lte("timestamp", fin_local.astimezone(timezone.utc).isoformat())
+                .execute()
+            )
 
-        acumulados_por_dia = {}
-        for fila in lecturas_resp.data:
-            ts_local = datetime.fromisoformat(fila["timestamp"]).astimezone(ZONA_HORARIA)
-            if ts_local.time() <= hora_actual:
-                dia = ts_local.date()
-                acumulados_por_dia[dia] = acumulados_por_dia.get(dia, 0) + (fila["valor"] or 0)
+            if not resp.data:
+                return None
+            return sum((fila["valor"] or 0) for fila in resp.data)
 
-        hoy = ahora_local.date()
-        hoy_acumulado = acumulados_por_dia.get(hoy, 0)
+        hoy_acumulado = suma_dia(hoy) or 0
 
         ayer = hoy - timedelta(days=1)
-        ayer_acumulado = acumulados_por_dia.get(ayer)
+        ayer_acumulado = suma_dia(ayer)
 
-        dias_laborables = []
+        dias_laborables_valores = []
         cursor = hoy - timedelta(days=1)
-        limite = hoy - timedelta(days=20)
-        while len(dias_laborables) < 5 and cursor > limite:
-            if cursor.weekday() < 5 and cursor in acumulados_por_dia:
-                dias_laborables.append(acumulados_por_dia[cursor])
+        intentos = 0
+        while len(dias_laborables_valores) < 5 and intentos < 20:
+            if cursor.weekday() < 5:
+                valor_dia = suma_dia(cursor)
+                if valor_dia is not None:
+                    dias_laborables_valores.append(valor_dia)
             cursor -= timedelta(days=1)
+            intentos += 1
 
         media_5_laborables = (
-            sum(dias_laborables) / len(dias_laborables) if dias_laborables else None
+            sum(dias_laborables_valores) / len(dias_laborables_valores)
+            if dias_laborables_valores else None
         )
 
         def pct_diff(actual, referencia):
@@ -231,7 +235,7 @@ def comparativa_energia(codigo: str):
             "media_5_laborables_misma_hora": round(media_5_laborables, 2) if media_5_laborables is not None else None,
             "vs_ayer_pct": pct_diff(hoy_acumulado, ayer_acumulado),
             "vs_media_pct": pct_diff(hoy_acumulado, media_5_laborables),
-            "dias_laborables_usados": len(dias_laborables),
+            "dias_laborables_usados": len(dias_laborables_valores),
         }
 
     except HTTPException:
