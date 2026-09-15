@@ -170,18 +170,17 @@ def comparativa_energia(codigo: str):
       - lunes-viernes activos por defecto
       - sábado-domingo inactivos por defecto
 
-    El horario de actividad NO interviene en este cálculo.
+    El horario de actividad (hora_inicio_actividad / hora_fin_actividad)
+    NO interviene en este cálculo.
     """
 
     try:
-
         # ============================================================
         # SENSOR + EDIFICIO
         # ============================================================
 
         sensor_resp = (
-            supabase
-            .table("sensores")
+            supabase.table("sensores")
             .select("id, edificio_id")
             .eq("sensor_id", codigo)
             .limit(1)
@@ -202,8 +201,7 @@ def comparativa_energia(codigo: str):
         # ============================================================
 
         calendario_resp = (
-            supabase
-            .table("edificios_calendario")
+            supabase.table("edificios_calendario")
             .select("fecha, activo")
             .eq("edificio_id", edificio_id)
             .execute()
@@ -236,79 +234,63 @@ def comparativa_energia(codigo: str):
 
             return dia.weekday() < 5
 
+
+# ============================================================
+# COMPROBAR SI HOY ES DÍA ACTIVO
+# ============================================================
+
         hoy_activo = dia_activo(hoy)
-
+       
         # ============================================================
-        # RANGO DE FECHAS
-        # ============================================================
-
-        fecha_inicio = hoy - timedelta(days=60)
-
-        inicio_utc = datetime.combine(
-            fecha_inicio,
-            dtime.min,
-            tzinfo=ZONA_HORARIA
-        ).astimezone(timezone.utc).isoformat()
-
-        fin_utc = datetime.combine(
-            hoy,
-            hora_actual,
-            tzinfo=ZONA_HORARIA
-        ).astimezone(timezone.utc).isoformat()
-
-        # ============================================================
-        # UNA SOLA CONSULTA DE LECTURAS
+        # CONSUMO DEL DÍA HASTA LA MISMA HORA
         # ============================================================
 
-        lecturas_resp = (
-            supabase
-            .table("lecturas")
-            .select("valor, timestamp")
-            .eq("sensor_id", sensor_numeric_id)
-            .gte("timestamp", inicio_utc)
-            .lte("timestamp", fin_utc)
-            .order("timestamp", desc=False)
-            .execute()
-        )
+        def consumo_dia(dia):
 
-        # ============================================================
-        # AGRUPAR LECTURAS POR FECHA LOCAL
-        # ============================================================
-
-        consumos_por_dia = {}
-
-        for fila in lecturas_resp.data:
-
-            valor = float(fila["valor"] or 0)
-
-            timestamp = fila["timestamp"]
-
-            # Supabase puede devolver timestamps con Z
-            if timestamp.endswith("Z"):
-                timestamp = timestamp[:-1] + "+00:00"
-
-            fecha_local = (
-                datetime
-                .fromisoformat(timestamp)
-                .astimezone(ZONA_HORARIA)
-                .date()
+            inicio = datetime.combine(
+                dia,
+                dtime.min,
+                tzinfo=ZONA_HORARIA
             )
 
-            consumos_por_dia.setdefault(
-                fecha_local,
-                0
+            fin = datetime.combine(
+                dia,
+                hora_actual,
+                tzinfo=ZONA_HORARIA
             )
 
-            consumos_por_dia[fecha_local] += valor
+            resp = (
+                supabase.table("lecturas")
+                .select("valor")
+                .eq("sensor_id", sensor_numeric_id)
+                .gte(
+                    "timestamp",
+                    inicio.astimezone(
+                        timezone.utc
+                    ).isoformat()
+                )
+                .lte(
+                    "timestamp",
+                    fin.astimezone(
+                        timezone.utc
+                    ).isoformat()
+                )
+                .execute()
+            )
+
+            if not resp.data:
+                return None
+
+            return sum(
+                float(fila["valor"] or 0)
+                for fila in resp.data
+            )
 
         # ============================================================
         # HOY
         # ============================================================
 
-        hoy_acumulado = consumos_por_dia.get(
-            hoy,
-            0
-        )
+        hoy_acumulado = consumo_dia(hoy) or 0
 
         # ============================================================
         # ÚLTIMO DÍA ACTIVO
@@ -319,15 +301,16 @@ def comparativa_energia(codigo: str):
 
         cursor = hoy - timedelta(days=1)
 
-        while cursor >= fecha_inicio:
+        while cursor >= hoy - timedelta(days=60):
 
             if dia_activo(cursor):
 
-                if cursor in consumos_por_dia:
+                valor = consumo_dia(cursor)
+
+                if valor is not None:
 
                     fecha_referencia_ayer = cursor
-                    consumo_ayer = consumos_por_dia[cursor]
-
+                    consumo_ayer = valor
                     break
 
             cursor -= timedelta(days=1)
@@ -343,20 +326,17 @@ def comparativa_energia(codigo: str):
 
         while (
             len(consumos_5_dias) < 5
-            and cursor >= fecha_inicio
+            and cursor >= hoy - timedelta(days=60)
         ):
 
             if dia_activo(cursor):
 
-                if cursor in consumos_por_dia:
+                valor = consumo_dia(cursor)
 
-                    consumos_5_dias.append(
-                        consumos_por_dia[cursor]
-                    )
+                if valor is not None:
 
-                    fechas_5_dias.append(
-                        cursor
-                    )
+                    consumos_5_dias.append(valor)
+                    fechas_5_dias.append(cursor)
 
             cursor -= timedelta(days=1)
 
@@ -377,10 +357,7 @@ def comparativa_energia(codigo: str):
         # PORCENTAJES
         # ============================================================
 
-        def diferencia_porcentaje(
-            actual,
-            referencia
-        ):
+        def diferencia_porcentaje(actual, referencia):
 
             if referencia is None or referencia == 0:
                 return None
@@ -409,45 +386,44 @@ def comparativa_energia(codigo: str):
 
         return {
 
-            "hoy_acumulado": round(
-                hoy_acumulado,
-                2
-            ),
+    "hoy_acumulado": round(
+        hoy_acumulado,
+        2
+    ),
 
-            "ayer_misma_hora": (
-                round(consumo_ayer, 2)
-                if consumo_ayer is not None
-                else None
-            ),
+    "ayer_misma_hora": (
+        round(consumo_ayer, 2)
+        if consumo_ayer is not None
+        else None
+    ),
 
-            "media_5_laborables_misma_hora": (
-                round(media_5_dias, 2)
-                if media_5_dias is not None
-                else None
-            ),
+    "media_5_laborables_misma_hora": (
+        round(media_5_dias, 2)
+        if media_5_dias is not None
+        else None
+    ),
 
-            "vs_ayer_pct": vs_ayer,
+    "vs_ayer_pct": vs_ayer,
 
-            "vs_media_pct": vs_media,
+    "vs_media_pct": vs_media,
 
-            "dia_actual_activo": hoy_activo,
+    "dia_actual_activo": hoy_activo,
 
-            "fecha_ayer_usada": (
-                fecha_referencia_ayer.isoformat()
-                if fecha_referencia_ayer
-                else None
-            ),
+    "fecha_ayer_usada": (
+        fecha_referencia_ayer.isoformat()
+        if fecha_referencia_ayer
+        else None
+    ),
 
-            "fechas_dias_activos": [
-                fecha.isoformat()
-                for fecha in fechas_5_dias
-            ],
+    "fechas_dias_activos": [
+        fecha.isoformat()
+        for fecha in fechas_5_dias
+    ],
 
-            "dias_laborables_usados": len(
-                consumos_5_dias
-            )
-        }
-
+    "dias_laborables_usados": len(
+        consumos_5_dias
+    )
+}
     except HTTPException:
         raise
 
