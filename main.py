@@ -227,13 +227,20 @@ def comparativa_energia(codigo: str):
 
         def dia_activo(dia):
 
-            fecha = dia.isoformat()
+    fecha = dia.isoformat()
 
-            if fecha in calendario:
-                return calendario[fecha]
+    if fecha in calendario:
+        return calendario[fecha]
 
-            return dia.weekday() < 5
+    return dia.weekday() < 5
 
+
+# ============================================================
+# COMPROBAR SI HOY ES DÍA ACTIVO
+# ============================================================
+
+hoy_activo = dia_activo(hoy)
+        
         # ============================================================
         # CONSUMO DEL DÍA HASTA LA MISMA HORA
         # ============================================================
@@ -379,43 +386,44 @@ def comparativa_energia(codigo: str):
 
         return {
 
-            "hoy_acumulado": round(
-                hoy_acumulado,
-                2
-            ),
+    "hoy_acumulado": round(
+        hoy_acumulado,
+        2
+    ),
 
-            "ayer_misma_hora": (
-                round(consumo_ayer, 2)
-                if consumo_ayer is not None
-                else None
-            ),
+    "ayer_misma_hora": (
+        round(consumo_ayer, 2)
+        if consumo_ayer is not None
+        else None
+    ),
 
-            "media_5_laborables_misma_hora": (
-                round(media_5_dias, 2)
-                if media_5_dias is not None
-                else None
-            ),
+    "media_5_laborables_misma_hora": (
+        round(media_5_dias, 2)
+        if media_5_dias is not None
+        else None
+    ),
 
-            "vs_ayer_pct": vs_ayer,
+    "vs_ayer_pct": vs_ayer,
 
-            "vs_media_pct": vs_media,
+    "vs_media_pct": vs_media,
 
-            "fecha_ayer_usada": (
-                fecha_referencia_ayer.isoformat()
-                if fecha_referencia_ayer
-                else None
-            ),
+    "dia_actual_activo": hoy_activo,
 
-            "fechas_dias_activos": [
-                fecha.isoformat()
-                for fecha in fechas_5_dias
-            ],
+    "fecha_ayer_usada": (
+        fecha_referencia_ayer.isoformat()
+        if fecha_referencia_ayer
+        else None
+    ),
 
-            "dias_laborables_usados": len(
-                consumos_5_dias
-            )
-        }
+    "fechas_dias_activos": [
+        fecha.isoformat()
+        for fecha in fechas_5_dias
+    ],
 
+    "dias_laborables_usados": len(
+        consumos_5_dias
+    )
+}
     except HTTPException:
         raise
 
