@@ -227,19 +227,19 @@ def comparativa_energia(codigo: str):
 
         def dia_activo(dia):
 
-    fecha = dia.isoformat()
+            fecha = dia.isoformat()
 
-    if fecha in calendario:
-        return calendario[fecha]
+            if fecha in calendario:
+                return calendario[fecha]
 
-    return dia.weekday() < 5
+            return dia.weekday() < 5
 
 
 # ============================================================
 # COMPROBAR SI HOY ES DÍA ACTIVO
 # ============================================================
 
-hoy_activo = dia_activo(hoy)
+        hoy_activo = dia_activo(hoy)
         
         # ============================================================
         # CONSUMO DEL DÍA HASTA LA MISMA HORA
