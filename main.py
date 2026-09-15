@@ -256,3 +256,85 @@ def obtener_sensores_con_lecturas():
         return {"sensores": sensores}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+from datetime import date
+from pydantic import BaseModel
+
+
+class HorarioActividad(BaseModel):
+    hora_inicio_actividad: str
+    hora_fin_actividad: str
+
+
+class DiaCalendario(BaseModel):
+    fecha: date
+    activo: bool
+
+
+@app.get("/api/edificios/{edificio_id}/configuracion")
+def obtener_configuracion_edificio(edificio_id: int):
+    respuesta = (
+        supabase
+        .table("edificios")
+        .select(
+            "id, nombre, hora_inicio_actividad, hora_fin_actividad"
+        )
+        .eq("id", edificio_id)
+        .single()
+        .execute()
+    )
+
+    calendario = (
+        supabase
+        .table("edificios_calendario")
+        .select("id, fecha, activo")
+        .eq("edificio_id", edificio_id)
+        .order("fecha")
+        .execute()
+    )
+
+    return {
+        "edificio": respuesta.data,
+        "calendario": calendario.data
+    }
+
+
+@app.put("/api/edificios/{edificio_id}/horario")
+def actualizar_horario(
+    edificio_id: int,
+    horario: HorarioActividad
+):
+    respuesta = (
+        supabase
+        .table("edificios")
+        .update({
+            "hora_inicio_actividad": horario.hora_inicio_actividad,
+            "hora_fin_actividad": horario.hora_fin_actividad
+        })
+        .eq("id", edificio_id)
+        .execute()
+    )
+
+    return respuesta.data
+
+
+@app.put("/api/edificios/{edificio_id}/calendario")
+def actualizar_dia_calendario(
+    edificio_id: int,
+    dia: DiaCalendario
+):
+    respuesta = (
+        supabase
+        .table("edificios_calendario")
+        .upsert(
+            {
+                "edificio_id": edificio_id,
+                "fecha": dia.fecha.isoformat(),
+                "activo": dia.activo
+            },
+            on_conflict="edificio_id,fecha"
+        )
+        .execute()
+    )
+
+    return respuesta.data
