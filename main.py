@@ -455,7 +455,14 @@ from pydantic import BaseModel
 class HorarioActividad(BaseModel):
     hora_inicio_actividad: str
     hora_fin_actividad: str
+    potencia_p1: Optional[float] = None
+    potencia_p2: Optional[float] = None
+    potencia_p3: Optional[float] = None
+    potencia_p4: Optional[float] = None
+    potencia_p5: Optional[float] = None
+    potencia_p6: Optional[float] = None
 
+    energia_verde: bool = False
 
 class DiaCalendario(BaseModel):
     fecha: date
@@ -468,7 +475,19 @@ def obtener_configuracion_edificio(edificio_id: int):
         supabase
         .table("edificios")
         .select(
-            "id, nombre, hora_inicio_actividad, hora_fin_actividad"
+            """
+            id,
+            nombre,
+            hora_inicio_actividad,
+            hora_fin_actividad,
+            potencia_p1,
+            potencia_p2,
+            potencia_p3,
+            potencia_p4,
+            potencia_p5,
+            potencia_p6,
+            energia_verde
+            """
         )
         .eq("id", edificio_id)
         .single()
@@ -501,6 +520,14 @@ def actualizar_horario(
         .update({
             "hora_inicio_actividad": horario.hora_inicio_actividad,
             "hora_fin_actividad": horario.hora_fin_actividad
+            "potencia_p1": horario.potencia_p1,
+            "potencia_p2": horario.potencia_p2,
+            "potencia_p3": horario.potencia_p3,
+            "potencia_p4": horario.potencia_p4,
+            "potencia_p5": horario.potencia_p5,
+             "potencia_p6": horario.potencia_p6,
+
+            "energia_verde": horario.energia_verde
         })
         .eq("id", edificio_id)
         .execute()
