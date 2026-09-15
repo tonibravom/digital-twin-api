@@ -174,10 +174,10 @@ def comparativa_energia(codigo: str):
     NO interviene en este cálculo.
     """
 
-    try:
+     try:
 
         # ============================================================
-        # 1. BUSCAR SENSOR Y EDIFICIO
+        # SENSOR + EDIFICIO
         # ============================================================
 
         sensor_resp = (
@@ -198,7 +198,7 @@ def comparativa_energia(codigo: str):
         edificio_id = sensor_resp.data[0]["edificio_id"]
 
         # ============================================================
-        # 2. CARGAR CALENDARIO PERSONALIZADO DEL EDIFICIO
+        # CALENDARIO
         # ============================================================
 
         calendario_resp = (
@@ -214,7 +214,7 @@ def comparativa_energia(codigo: str):
         }
 
         # ============================================================
-        # 3. FECHA Y HORA ACTUAL EN ESPAÑA
+        # FECHA/HORA ACTUAL
         # ============================================================
 
         ahora_local = datetime.now(ZONA_HORARIA)
@@ -223,37 +223,32 @@ def comparativa_energia(codigo: str):
         hora_actual = ahora_local.time()
 
         # ============================================================
-        # 4. DETERMINAR SI UN DÍA ESTÁ ACTIVO
+        # ¿DÍA ACTIVO?
         # ============================================================
 
-        def dia_activo(dia_local):
+        def dia_activo(dia):
 
-            fecha_str = dia_local.isoformat()
+            fecha = dia.isoformat()
 
-            # Si existe una configuración específica para ese día,
-            # tiene prioridad sobre el comportamiento por defecto.
-            if fecha_str in calendario:
-                return calendario[fecha_str]
+            if fecha in calendario:
+                return calendario[fecha]
 
-            # Por defecto:
-            # lunes-viernes = activo
-            # sábado-domingo = inactivo
-            return dia_local.weekday() < 5
+            return dia.weekday() < 5
 
         # ============================================================
-        # 5. SUMAR CONSUMO DE UN DÍA
+        # CONSUMO DEL DÍA HASTA LA MISMA HORA
         # ============================================================
 
-        def suma_dia(dia_local):
+        def consumo_dia(dia):
 
-            inicio_local = datetime.combine(
-                dia_local,
+            inicio = datetime.combine(
+                dia,
                 dtime.min,
                 tzinfo=ZONA_HORARIA
             )
 
-            fin_local = datetime.combine(
-                dia_local,
+            fin = datetime.combine(
+                dia,
                 hora_actual,
                 tzinfo=ZONA_HORARIA
             )
@@ -264,13 +259,13 @@ def comparativa_energia(codigo: str):
                 .eq("sensor_id", sensor_numeric_id)
                 .gte(
                     "timestamp",
-                    inicio_local.astimezone(
+                    inicio.astimezone(
                         timezone.utc
                     ).isoformat()
                 )
                 .lte(
                     "timestamp",
-                    fin_local.astimezone(
+                    fin.astimezone(
                         timezone.utc
                     ).isoformat()
                 )
@@ -281,158 +276,145 @@ def comparativa_energia(codigo: str):
                 return None
 
             return sum(
-                (fila["valor"] or 0)
+                float(fila["valor"] or 0)
                 for fila in resp.data
             )
 
         # ============================================================
-        # 6. CONSUMO DE HOY
+        # HOY
         # ============================================================
 
-        hoy_acumulado = suma_dia(hoy) or 0
+        hoy_acumulado = consumo_dia(hoy) or 0
 
         # ============================================================
-        # 7. BUSCAR EL ÚLTIMO DÍA ACTIVO ANTERIOR
+        # ÚLTIMO DÍA ACTIVO
         # ============================================================
 
-        ayer_acumulado = None
-        fecha_ayer_usada = None
+        fecha_referencia_ayer = None
+        consumo_ayer = None
 
         cursor = hoy - timedelta(days=1)
-        intentos = 0
 
-        while intentos < 60:
+        while cursor >= hoy - timedelta(days=60):
 
             if dia_activo(cursor):
 
-                valor_dia = suma_dia(cursor)
+                valor = consumo_dia(cursor)
 
-                if valor_dia is not None:
+                if valor is not None:
 
-                    ayer_acumulado = valor_dia
-                    fecha_ayer_usada = cursor.isoformat()
-
+                    fecha_referencia_ayer = cursor
+                    consumo_ayer = valor
                     break
 
             cursor -= timedelta(days=1)
-            intentos += 1
 
         # ============================================================
-        # 8. BUSCAR LOS 5 ÚLTIMOS DÍAS ACTIVOS
+        # 5 ÚLTIMOS DÍAS ACTIVOS
         # ============================================================
 
-        dias_activos_valores = []
-        fechas_dias_activos = []
+        consumos_5_dias = []
+        fechas_5_dias = []
 
         cursor = hoy - timedelta(days=1)
-        intentos = 0
 
         while (
-            len(dias_activos_valores) < 5
-            and intentos < 60
+            len(consumos_5_dias) < 5
+            and cursor >= hoy - timedelta(days=60)
         ):
 
             if dia_activo(cursor):
 
-                valor_dia = suma_dia(cursor)
+                valor = consumo_dia(cursor)
 
-                if valor_dia is not None:
+                if valor is not None:
 
-                    dias_activos_valores.append(
-                        valor_dia
-                    )
-
-                    fechas_dias_activos.append(
-                        cursor.isoformat()
-                    )
+                    consumos_5_dias.append(valor)
+                    fechas_5_dias.append(cursor)
 
             cursor -= timedelta(days=1)
-            intentos += 1
 
         # ============================================================
-        # 9. CALCULAR MEDIA DE LOS 5 DÍAS
+        # MEDIA
         # ============================================================
 
-        media_5_laborables = (
+        media_5_dias = None
 
-            sum(dias_activos_valores)
-            / len(dias_activos_valores)
+        if consumos_5_dias:
 
-            if dias_activos_valores
-
-            else None
-        )
-
-        # ============================================================
-        # 10. PORCENTAJES DE COMPARACIÓN
-        # ============================================================
-
-        def pct_diff(actual, referencia):
-
-            if referencia in (None, 0):
-                return None
-
-            return round(
-                (actual - referencia)
-                / referencia
-                * 100,
-                1
+            media_5_dias = (
+                sum(consumos_5_dias)
+                / len(consumos_5_dias)
             )
 
         # ============================================================
-        # 11. RESPUESTA
+        # PORCENTAJES
+        # ============================================================
+
+        def diferencia_porcentaje(actual, referencia):
+
+            if referencia is None or referencia == 0:
+                return None
+
+            return round(
+                (
+                    (actual - referencia)
+                    / referencia
+                ) * 100,
+                1
+            )
+
+        vs_ayer = diferencia_porcentaje(
+            hoy_acumulado,
+            consumo_ayer
+        )
+
+        vs_media = diferencia_porcentaje(
+            hoy_acumulado,
+            media_5_dias
+        )
+
+        # ============================================================
+        # RESPUESTA
         # ============================================================
 
         return {
 
-            # Consumo actual
             "hoy_acumulado": round(
                 hoy_acumulado,
                 2
             ),
 
-            # Referencia del día anterior activo
             "ayer_misma_hora": (
-                round(
-                    ayer_acumulado,
-                    2
-                )
-                if ayer_acumulado is not None
+                round(consumo_ayer, 2)
+                if consumo_ayer is not None
                 else None
             ),
 
-            # Media de los 5 últimos días activos
             "media_5_laborables_misma_hora": (
-
-                round(
-                    media_5_laborables,
-                    2
-                )
-
-                if media_5_laborables is not None
-
+                round(media_5_dias, 2)
+                if media_5_dias is not None
                 else None
             ),
 
-            # Porcentajes
-            "vs_ayer_pct": pct_diff(
-                hoy_acumulado,
-                ayer_acumulado
+            "vs_ayer_pct": vs_ayer,
+
+            "vs_media_pct": vs_media,
+
+            "fecha_ayer_usada": (
+                fecha_referencia_ayer.isoformat()
+                if fecha_referencia_ayer
+                else None
             ),
 
-            "vs_media_pct": pct_diff(
-                hoy_acumulado,
-                media_5_laborables
-            ),
-
-            # Información adicional útil para comprobar el funcionamiento
-            "fecha_ayer_usada": fecha_ayer_usada,
+            "fechas_dias_activos": [
+                fecha.isoformat()
+                for fecha in fechas_5_dias
+            ],
 
             "dias_laborables_usados": len(
-                dias_activos_valores
-            ),
-
-            "fechas_dias_activos": fechas_dias_activos
+                consumos_5_dias
+            )
         }
 
     except HTTPException:
