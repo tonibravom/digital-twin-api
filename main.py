@@ -156,92 +156,294 @@ def obtener_valores_sensor(codigo: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/api/sensores/{codigo}/comparativa")
 def comparativa_energia(codigo: str):
     """
-    Compara el acumulado de HOY (desde medianoche hasta la hora actual) de un
-    sensor de energía contra:
-      - el acumulado de AYER hasta la misma hora
-      - la media de los últimos 5 días laborables hasta la misma hora
+    Compara el consumo acumulado de HOY (desde 00:00 hasta la hora actual)
+    contra:
 
-    Nota: se consulta cada día por separado (en vez de traer 15 días de golpe)
-    para evitar el límite por defecto de 1000 filas de Supabase, que cortaba
-    las lecturas más recientes (las de hoy).
+      - el último día activo anterior con datos, hasta la misma hora
+      - la media de los 5 últimos días activos con datos, hasta la misma hora
+
+    La actividad de cada día se determina mediante:
+      - edificios_calendario, si existe una configuración específica para ese día
+      - lunes-viernes activos por defecto
+      - sábado-domingo inactivos por defecto
+
+    El horario de actividad (hora_inicio_actividad / hora_fin_actividad)
+    NO interviene en este cálculo.
     """
+
     try:
+
+        # ============================================================
+        # 1. BUSCAR SENSOR Y EDIFICIO
+        # ============================================================
+
         sensor_resp = (
             supabase.table("sensores")
-            .select("id")
+            .select("id, edificio_id")
             .eq("sensor_id", codigo)
             .limit(1)
             .execute()
         )
+
         if not sensor_resp.data:
-            raise HTTPException(status_code=404, detail=f"Sensor '{codigo}' no encontrado")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Sensor '{codigo}' no encontrado"
+            )
 
         sensor_numeric_id = sensor_resp.data[0]["id"]
+        edificio_id = sensor_resp.data[0]["edificio_id"]
+
+        # ============================================================
+        # 2. CARGAR CALENDARIO PERSONALIZADO DEL EDIFICIO
+        # ============================================================
+
+        calendario_resp = (
+            supabase.table("edificios_calendario")
+            .select("fecha, activo")
+            .eq("edificio_id", edificio_id)
+            .execute()
+        )
+
+        calendario = {
+            fila["fecha"]: bool(fila["activo"])
+            for fila in calendario_resp.data
+        }
+
+        # ============================================================
+        # 3. FECHA Y HORA ACTUAL EN ESPAÑA
+        # ============================================================
 
         ahora_local = datetime.now(ZONA_HORARIA)
+
         hoy = ahora_local.date()
         hora_actual = ahora_local.time()
 
-        def suma_dia(dia_local) -> Optional[float]:
-            inicio_local = datetime.combine(dia_local, dtime.min, tzinfo=ZONA_HORARIA)
-            fin_local = datetime.combine(dia_local, hora_actual, tzinfo=ZONA_HORARIA)
+        # ============================================================
+        # 4. DETERMINAR SI UN DÍA ESTÁ ACTIVO
+        # ============================================================
+
+        def dia_activo(dia_local):
+
+            fecha_str = dia_local.isoformat()
+
+            # Si existe una configuración específica para ese día,
+            # tiene prioridad sobre el comportamiento por defecto.
+            if fecha_str in calendario:
+                return calendario[fecha_str]
+
+            # Por defecto:
+            # lunes-viernes = activo
+            # sábado-domingo = inactivo
+            return dia_local.weekday() < 5
+
+        # ============================================================
+        # 5. SUMAR CONSUMO DE UN DÍA
+        # ============================================================
+
+        def suma_dia(dia_local):
+
+            inicio_local = datetime.combine(
+                dia_local,
+                dtime.min,
+                tzinfo=ZONA_HORARIA
+            )
+
+            fin_local = datetime.combine(
+                dia_local,
+                hora_actual,
+                tzinfo=ZONA_HORARIA
+            )
 
             resp = (
                 supabase.table("lecturas")
                 .select("valor")
                 .eq("sensor_id", sensor_numeric_id)
-                .gte("timestamp", inicio_local.astimezone(timezone.utc).isoformat())
-                .lte("timestamp", fin_local.astimezone(timezone.utc).isoformat())
+                .gte(
+                    "timestamp",
+                    inicio_local.astimezone(
+                        timezone.utc
+                    ).isoformat()
+                )
+                .lte(
+                    "timestamp",
+                    fin_local.astimezone(
+                        timezone.utc
+                    ).isoformat()
+                )
                 .execute()
             )
 
             if not resp.data:
                 return None
-            return sum((fila["valor"] or 0) for fila in resp.data)
+
+            return sum(
+                (fila["valor"] or 0)
+                for fila in resp.data
+            )
+
+        # ============================================================
+        # 6. CONSUMO DE HOY
+        # ============================================================
 
         hoy_acumulado = suma_dia(hoy) or 0
 
-        ayer = hoy - timedelta(days=1)
-        ayer_acumulado = suma_dia(ayer)
+        # ============================================================
+        # 7. BUSCAR EL ÚLTIMO DÍA ACTIVO ANTERIOR
+        # ============================================================
 
-        dias_laborables_valores = []
+        ayer_acumulado = None
+        fecha_ayer_usada = None
+
         cursor = hoy - timedelta(days=1)
         intentos = 0
-        while len(dias_laborables_valores) < 5 and intentos < 20:
-            if cursor.weekday() < 5:
+
+        while intentos < 60:
+
+            if dia_activo(cursor):
+
                 valor_dia = suma_dia(cursor)
+
                 if valor_dia is not None:
-                    dias_laborables_valores.append(valor_dia)
+
+                    ayer_acumulado = valor_dia
+                    fecha_ayer_usada = cursor.isoformat()
+
+                    break
+
             cursor -= timedelta(days=1)
             intentos += 1
 
+        # ============================================================
+        # 8. BUSCAR LOS 5 ÚLTIMOS DÍAS ACTIVOS
+        # ============================================================
+
+        dias_activos_valores = []
+        fechas_dias_activos = []
+
+        cursor = hoy - timedelta(days=1)
+        intentos = 0
+
+        while (
+            len(dias_activos_valores) < 5
+            and intentos < 60
+        ):
+
+            if dia_activo(cursor):
+
+                valor_dia = suma_dia(cursor)
+
+                if valor_dia is not None:
+
+                    dias_activos_valores.append(
+                        valor_dia
+                    )
+
+                    fechas_dias_activos.append(
+                        cursor.isoformat()
+                    )
+
+            cursor -= timedelta(days=1)
+            intentos += 1
+
+        # ============================================================
+        # 9. CALCULAR MEDIA DE LOS 5 DÍAS
+        # ============================================================
+
         media_5_laborables = (
-            sum(dias_laborables_valores) / len(dias_laborables_valores)
-            if dias_laborables_valores else None
+
+            sum(dias_activos_valores)
+            / len(dias_activos_valores)
+
+            if dias_activos_valores
+
+            else None
         )
 
+        # ============================================================
+        # 10. PORCENTAJES DE COMPARACIÓN
+        # ============================================================
+
         def pct_diff(actual, referencia):
+
             if referencia in (None, 0):
                 return None
-            return round((actual - referencia) / referencia * 100, 1)
+
+            return round(
+                (actual - referencia)
+                / referencia
+                * 100,
+                1
+            )
+
+        # ============================================================
+        # 11. RESPUESTA
+        # ============================================================
 
         return {
-            "hoy_acumulado": round(hoy_acumulado, 2),
-            "ayer_misma_hora": round(ayer_acumulado, 2) if ayer_acumulado is not None else None,
-            "media_5_laborables_misma_hora": round(media_5_laborables, 2) if media_5_laborables is not None else None,
-            "vs_ayer_pct": pct_diff(hoy_acumulado, ayer_acumulado),
-            "vs_media_pct": pct_diff(hoy_acumulado, media_5_laborables),
-            "dias_laborables_usados": len(dias_laborables_valores),
+
+            # Consumo actual
+            "hoy_acumulado": round(
+                hoy_acumulado,
+                2
+            ),
+
+            # Referencia del día anterior activo
+            "ayer_misma_hora": (
+                round(
+                    ayer_acumulado,
+                    2
+                )
+                if ayer_acumulado is not None
+                else None
+            ),
+
+            # Media de los 5 últimos días activos
+            "media_5_laborables_misma_hora": (
+
+                round(
+                    media_5_laborables,
+                    2
+                )
+
+                if media_5_laborables is not None
+
+                else None
+            ),
+
+            # Porcentajes
+            "vs_ayer_pct": pct_diff(
+                hoy_acumulado,
+                ayer_acumulado
+            ),
+
+            "vs_media_pct": pct_diff(
+                hoy_acumulado,
+                media_5_laborables
+            ),
+
+            # Información adicional útil para comprobar el funcionamiento
+            "fecha_ayer_usada": fecha_ayer_usada,
+
+            "dias_laborables_usados": len(
+                dias_activos_valores
+            ),
+
+            "fechas_dias_activos": fechas_dias_activos
         }
 
     except HTTPException:
         raise
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 
 @app.get("/api/lecturas/sensores-disponibles")
