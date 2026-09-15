@@ -174,8 +174,7 @@ def comparativa_energia(codigo: str):
     NO interviene en este cálculo.
     """
 
-     try:
-
+    try:
         # ============================================================
         # SENSOR + EDIFICIO
         # ============================================================
